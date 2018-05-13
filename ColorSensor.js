@@ -25,7 +25,13 @@ let Controllers = {
             value: function(address, virtualRegister, cb) {
                 this.io.i2cWrite(address, [this.REGISTERS.PERIPHERAL_STATUS])
                 this.io.i2cRead(address, 1, (data) => {
-                    cb(data)
+                    if(data & this.REGISTERS.PERIPHERAL_RX_VALID != 0){
+                        // there is extraneous data to be read, read it and do nothing with it.
+                        this.io.i2cWrite(address, this.REGISTERS.PERIPHERAL_READ)
+                        this.io.i2cRead(address, 1, () => {})
+                    }
+
+                    
                 })
             }
         },
@@ -44,7 +50,8 @@ let Controllers = {
                 console.log(opts.address)
 
                 this.io.i2cConfig(opts)
-                this.readVirtualRegister(opts.address, this.REGISTERS.VIRTUAL_HW_VERSION, (err, data)=> {
+                this.readVirtualRegister(opts.address, this.REGISTERS.VIRTUAL_HW_VERSION, (err, data) => {
+
                 })
             }
         }
