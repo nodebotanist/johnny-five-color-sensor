@@ -13,6 +13,7 @@
   "license": "MIT",
   "readme": "A bare bones Tessel 2 blinky script.",
   "dependencies": {
+    "async": "^2.6.0",
     "johnny-five": "^0.15.0",
     "tessel-io": "^1.2.0"
   }
