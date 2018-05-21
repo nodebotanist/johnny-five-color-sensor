@@ -1,5 +1,9 @@
 const tessel = require('tessel')
 const ColorSensor = require('./ColorSensor-bareTessel')
-const async = require('async')
 
+let color = new ColorSensor()
+
+color.on('ready', () => {})
+
+color.init()
 
