@@ -22,6 +22,10 @@ ColorSensor.prototype.VIRTUAL_REGISTERS = {
 ColorSensor.prototype.RX_VALID = 0x01
 ColorSensor.prototype.TX_VALID = 0x02
 
+ColorSensor.prototype.BULB_CURRENT = {
+  MINIMUM: 0b00
+}
+
 ColorSensor.prototype.init = function() {
   this.i2c = new this.port.I2C(this.address) // begin I2C comms
   async.series([
@@ -34,8 +38,22 @@ ColorSensor.prototype.init = function() {
         }
         callback(null, data)
       })
+    },
+    (callback) => {
+      this.setBulbCurrent(this.BULB_CURRENT.MINIMUM, callback)
+    },
+    (callback) => {
+      this.disableBulb(callback)
     }
   ])
+}
+
+ColorSensor.prototype.setBulbCurrent = function(current, callback) {
+
+}
+
+ColorSensor.prototype.disableBulb = function(callback) {
+
 }
 
 ColorSensor.prototype.virtualWrite = function(virtualRegister, value) {
