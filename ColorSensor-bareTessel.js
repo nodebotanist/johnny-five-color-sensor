@@ -56,8 +56,70 @@ ColorSensor.prototype.disableBulb = function(callback) {
 
 }
 
-ColorSensor.prototype.virtualWrite = function(virtualRegister, value) {
-
+ColorSensor.prototype.virtualWrite = function(virtualRegister, value, callback) {
+  let status = null
+  async.series([
+    // wait for write bit to be clear
+    (callback) => {
+      async.until(
+        () => {
+          if(status == null) {
+            return false
+          } else {
+            return ((status & this.TX_VALID) == 0)
+          }
+        },
+        (callback) => {
+          this.i2c.transfer(Buffer.from([this.REGISTERS.PERIPHERAL_STATUS]), 1, (err, data) => {
+            if(err) callback(err, null)
+            status = data[0]
+            callback(null, null)
+          })
+        },
+        callback
+      )
+    },
+    // set virtual register address (set bit 7 to indicate a write)
+    (callback) => {
+      this.i2c.send(Buffer.from([this.REGISTERS.PERIPHERAL_WRITE, (0x80 | virtualRegister)]), (err) => {
+        if(err){
+          callback(err, null)
+        }
+        status = null
+        callback(null, null)
+      })
+    },
+    // wait for write register to be empty
+    (callback) => {
+      async.until(
+        () => {
+          if(status == null) {
+            return false
+          } else {
+            return ((status & this.TX_VALID) == 0)
+          }
+        },
+        (callback) => {
+          this.i2c.transfer(Buffer.from([this.REGISTERS.PERIPHERAL_STATUS]), 1, (err, data) => {
+            if(err) callback(err, null)
+            status = data[0]
+            callback(null, null)
+          })
+        },
+        callback
+      )
+    },
+    // send data
+    (callback) => {
+      this.i2c.send(Buffer.from([this.REGISTERS.PERIPHERAL_WRITE, value]), (err) => {
+        if(err){
+          callback(err, null)
+        }
+        status = null
+        callback(null, null)
+      })
+    }
+  ], callback)
 }
 
 ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
