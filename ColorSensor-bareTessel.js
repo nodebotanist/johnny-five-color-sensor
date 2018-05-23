@@ -23,12 +23,19 @@ ColorSensor.prototype.RX_VALID = 0x01
 ColorSensor.prototype.TX_VALID = 0x02
 
 ColorSensor.prototype.init = function() {
-  console.log('begin I2C comms')
   this.i2c = new this.port.I2C(this.address) // begin I2C comms
-  this.virtualRead(this.VIRTUAL_REGISTERS.HW_VERSION, (err, data) => {
-    if (err) console.log('Error Retrieving HW version: ', err)
-    console.log('Hardware version: ', data)
-  })
+  async.series([
+    (callback) => { 
+      this.virtualRead(this.VIRTUAL_REGISTERS.HW_VERSION, (err, data) => {
+        if (err) console.error('Error Retrieving HW version: ', err)
+        if(data !== 0x3E && data !== 0x3F) {
+          console.error('Error: hardware version expected 0x3E or 0x3F, got ', data)
+          callback(new Error('Error: hardware version expected 0x3E or 0x3F, got ', data), null)
+        }
+        callback(null, data)
+      })
+    }
+  ])
 }
 
 ColorSensor.prototype.virtualWrite = function(virtualRegister, value) {
