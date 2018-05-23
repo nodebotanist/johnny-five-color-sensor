@@ -11,7 +11,8 @@ function ColorSensor(opts) {
 
 ColorSensor.prototype.REGISTERS = {
   PERIPHERAL_STATUS: 0x00,
-  PERIPHERAL_READ: 0x02
+  PERIPHERAL_READ: 0x02,
+  PERIPHERAL_WRITE: 0x01
 }
 
 ColorSensor.prototype.VIRTUAL_REGISTERS = {
@@ -80,7 +81,7 @@ ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
       )
     },
     (callback) => {
-      this.i2c.send(Buffer.from([virtualRegister]), (err) => {
+      this.i2c.send(Buffer.from([this.REGISTERS.PERIPHERAL_WRITE, virtualRegister]), (err) => {
         if(err){
           callback(err, null)
         }
@@ -113,11 +114,12 @@ ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
       this.i2c.transfer(Buffer.from([this.REGISTERS.PERIPHERAL_READ]), 1, (err, data) => {
         if (err) callback(err, null)
         console.log('Peripheral data byte read: ', data[0])
+        result = data[0]
         callback(null, data[0])
       })
     }
   ], (err, data) => {
-    callback(err, data)
+    callback(err, result)
   })
 }
 
