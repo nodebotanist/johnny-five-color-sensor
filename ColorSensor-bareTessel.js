@@ -41,7 +41,6 @@ ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
     (callback) => {
       this.i2c.transfer(Buffer.from([this.REGISTERS.PERIPHERAL_STATUS]), 1, (err, data) => {
         if (err) callback(err, null)
-        console.log('Peripheral status byte: ', data)
         status = data[0]
         callback(null, null)
       })
@@ -64,20 +63,20 @@ ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
       async.until(
         () => {
           if(status == null) {
+            console.log('status NULL')
             return false
           } else {
-            console.log('status: ', status)
-            return status & this.TX_VALID === 0x00
+            return ((status & this.TX_VALID) == 0)
           }
         },
         (callback) => {
           this.i2c.transfer(Buffer.from([this.REGISTERS.PERIPHERAL_STATUS]), 1, (err, data) => {
             if(err) callback(err, null)
-            console.log('Peripheral status byte 2: ', data)
             status = data[0]
             callback(null, null)
           })
-        }
+        },
+        callback
       )
     },
     (callback) => {
@@ -93,25 +92,27 @@ ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
       async.until(
         () => {
           if(status == null) {
+            console.log('Status null')
             return false
           } else {
-            return status & this.RX_VALID === 0x00
+            console.log('Status Read: ', status)
+            return (status & this.RX_VALID) != 0
           }
         },
         (callback) => {
           this.i2c.transfer(Buffer.from([this.REGISTERS.PERIPHERAL_STATUS]), 1, (err, data) => {
             if(err) callback(err, null)
-            console.log('Peripheral status byte: ', data)
             status = data[0]
             callback(null, null)
           })
-        }
+        },
+        callback
       )
     },
     (callback) => {
       this.i2c.transfer(Buffer.from([this.REGISTERS.PERIPHERAL_READ]), 1, (err, data) => {
         if (err) callback(err, null)
-        console.log('Peripheral data byte read: ', data)
+        console.log('Peripheral data byte read: ', data[0])
         callback(null, data[0])
       })
     }
