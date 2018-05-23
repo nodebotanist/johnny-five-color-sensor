@@ -16,14 +16,18 @@ ColorSensor.prototype.REGISTERS = {
 }
 
 ColorSensor.prototype.VIRTUAL_REGISTERS = {
-  HW_VERSION: 0x01
+  HW_VERSION: 0x01,
+  LED_CONTROL: 0x07
 }
 
 ColorSensor.prototype.RX_VALID = 0x01
 ColorSensor.prototype.TX_VALID = 0x02
 
 ColorSensor.prototype.BULB_CURRENT = {
-  MINIMUM: 0b00
+  TWELVE_POINT_FIVE: 0b00,
+  TWENTY_FIVE: 0b01,
+  FIFTY: 0b10,
+  ONE_HUNDRED: 0b11
 }
 
 ColorSensor.prototype.init = function() {
@@ -49,7 +53,28 @@ ColorSensor.prototype.init = function() {
 }
 
 ColorSensor.prototype.setBulbCurrent = function(current, callback) {
-
+  let ledControl
+  async.series([
+    // read LED_CONTROL value
+    (callback) => {
+      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
+        ledControl = data
+        callback(err, null)
+      })
+    },
+    // Set bits 5-6 to user value
+    (callback) => {
+      ledControl &= 0b11001111 // clears bits 5-6
+      ledControl != (current << 4)// sets bits 5-6 to current
+      callback(null, null)
+    },
+    // write to LED_CONTROL
+    (callback) => {
+      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
+        callback(err, null)
+      })
+    }
+  ], callback)
 }
 
 ColorSensor.prototype.disableBulb = function(callback) {
