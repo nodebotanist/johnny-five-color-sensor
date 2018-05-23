@@ -49,7 +49,9 @@ ColorSensor.prototype.init = function() {
     (callback) => {
       this.disableBulb(callback)
     }
-  ])
+  ], (err, data) => {
+    this.emit('ready')
+  })
 }
 
 ColorSensor.prototype.setBulbCurrent = function(current, callback) {
@@ -65,7 +67,31 @@ ColorSensor.prototype.setBulbCurrent = function(current, callback) {
     // Set bits 5-6 to user value
     (callback) => {
       ledControl &= 0b11001111 // clears bits 5-6
-      ledControl != (current << 4)// sets bits 5-6 to current
+      ledControl |= (current << 4)// sets bits 5-6 to current
+      callback(null, null)
+    },
+    // write to LED_CONTROL
+    (callback) => {
+      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
+        callback(err, null)
+      })
+    }
+  ], callback)
+}
+
+ColorSensor.prototype.enableBulb = function(callback) {
+  let ledControl
+  async.series([
+    // read LED_CONTROL value
+    (callback) => {
+      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
+        ledControl = data
+        callback(err, null)
+      })
+    },
+    // Set bit 3
+    (callback) => {
+      ledControl |= (1 << 3)
       callback(null, null)
     },
     // write to LED_CONTROL
@@ -78,7 +104,27 @@ ColorSensor.prototype.setBulbCurrent = function(current, callback) {
 }
 
 ColorSensor.prototype.disableBulb = function(callback) {
-
+  let ledControl
+  async.series([
+    // read LED_CONTROL value
+    (callback) => {
+      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
+        ledControl = data
+        callback(err, null)
+      })
+    },
+    // Clear bit 3
+    (callback) => {
+      ledControl &= 0b11110111
+      callback(null, null)
+    },
+    // write to LED_CONTROL
+    (callback) => {
+      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
+        callback(err, null)
+      })
+    }
+  ], callback)
 }
 
 ColorSensor.prototype.virtualWrite = function(virtualRegister, value, callback) {

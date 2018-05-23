@@ -3,7 +3,11 @@ const ColorSensor = require('./ColorSensor-bareTessel')
 
 let color = new ColorSensor()
 
-color.on('ready', () => {})
+color.on('ready', () => {
+  console.log('Ready!')
+  color.enableBulb(() => {})
+  setTimeout(() => { color.disableBulb(() => {}) }, 1000)
+})
 
 color.init()
 
