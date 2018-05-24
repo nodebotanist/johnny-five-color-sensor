@@ -96,149 +96,27 @@ ColorSensor.prototype.init = function() {
 }
 
 ColorSensor.prototype.setBulbCurrent = function(current, callback) {
-  let ledControl
-  async.series([
-    // read LED_CONTROL value
-    (callback) => {
-      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
-        ledControl = data
-        callback(err, null)
-      })
-    },
-    // Set bits 5-6 to user value
-    (callback) => {
-      ledControl &= 0b11001111 // clears bits 5-6
-      ledControl |= (current << 4)// sets bits 5-6 to current
-      callback(null, null)
-    },
-    // write to LED_CONTROL
-    (callback) => {
-      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
-        callback(err, null)
-      })
-    }
-  ], callback)
+  this._setBitMask(this.VIRTUAL_REGISTERS.LED_CONTROL, 0b11001111, current, 4, callback)
 }
 
 ColorSensor.prototype.enableBulb = function(callback) {
-  let ledControl
-  async.series([
-    // read LED_CONTROL value
-    (callback) => {
-      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
-        ledControl = data
-        callback(err, null)
-      })
-    },
-    // Set bit 3
-    (callback) => {
-      ledControl |= (1 << 3)
-      callback(null, null)
-    },
-    // write to LED_CONTROL
-    (callback) => {
-      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
-        callback(err, null)
-      })
-    }
-  ], callback)
+  this._setBitMask(this.VIRTUAL_REGISTERS.LED_CONTROL, 0b11110111, 1, 3, callback)
 }
 
 ColorSensor.prototype.disableBulb = function(callback) {
-  let ledControl
-  async.series([
-    // read LED_CONTROL value
-    (callback) => {
-      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
-        ledControl = data
-        callback(err, null)
-      })
-    },
-    // Clear bit 3
-    (callback) => {
-      ledControl &= 0b11110111
-      callback(null, null)
-    },
-    // write to LED_CONTROL
-    (callback) => {
-      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
-        callback(err, null)
-      })
-    }
-  ], callback)
+  this._setBitMask(this.VIRTUAL_REGISTERS.LED_CONTROL, 0b11110111, 0, 3, callback)
 }
 
 ColorSensor.prototype.setIndicatorCurrent = function(current, callback){
-  let ledControl
-  async.series([
-    // read LED_CONTROL value
-    (callback) => {
-      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
-        ledControl = data
-        callback(err, null)
-      })
-    },
-    // Set bits 2-3 to user value
-    (callback) => {
-      ledControl &= 0b11111001 // clears bits 5-6
-      ledControl |= (current << 4)// sets bits 5-6 to current
-      callback(null, null)
-    },
-    // write to LED_CONTROL
-    (callback) => {
-      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
-        callback(err, null)
-      })
-    }
-  ], callback)
+  this._setBitMask(this.VIRTUAL_REGISTERS.LED_CONTROL, 0b11111001, current, 1, callback)
 }
 
 ColorSensor.prototype.enableIndicator = function(callback) {
-  let ledControl
-  async.series([
-    // read LED_CONTROL value
-    (callback) => {
-      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
-        ledControl = data
-        callback(err, null)
-      })
-    },
-    // Set bit 1
-    (callback) => {
-      ledControl |= 1
-      callback(null, null)
-    },
-    // write to LED_CONTROL
-    (callback) => {
-      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
-        callback(err, null)
-      })
-    }
-  ], callback)
+  this._setBitMask(this.VIRTUAL_REGISTERS.LED_CONTROL, 0b11111110, 1, 0, callback)
 }
 
 ColorSensor.prototype.disableIndicator = function(callback) {
-  let ledControl
-  async.series([
-    // read LED_CONTROL value
-    (callback) => {
-      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
-        ledControl = data
-        callback(err, null)
-      })
-    },
-    // Clear bit 3
-    (callback) => {
-      ledControl &= 0b11111110
-      callback(null, null)
-    },
-    // write to LED_CONTROL
-    (callback) => {
-      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
-        callback(err, null)
-      })
-    }
-  ], callback)
+  this._setBitMask(this.VIRTUAL_REGISTERS.LED_CONTROL, 0b11111110, 0, 0, callback)
 }
 
 ColorSensor.prototype.setIntegrationTime = function (intTime, callback){
@@ -247,29 +125,34 @@ ColorSensor.prototype.setIntegrationTime = function (intTime, callback){
 }
 
 ColorSensor.prototype.setGain = function(gain, callback) {
-  let controlSetup
+  this._setBitMask(this.VIRTUAL_REGISTERS.CONTROL_SETUP, 0b11001111, gain, 4, callback)
+}
+
+ColorSensor.prototype._setBitMask = function (virtualRegister, mask, value, shift, callback){
+  let valueStorage
   async.series([
-    // read CONTROL_SETUP value
+    // read virtualRegister value
     (callback) => {
-      this.virtualRead(this.VIRTUAL_REGISTERS.CONTROL_SETUP, (err, data) => {
-        controlSetup = data
+      this.virtualRead(virtualRegister, (err, data) => {
+        valueStorage = data
         callback(err, null)
       })
     },
     // Set bits 5-6
     (callback) => {
-      controlSetup &= 0b11001111
-      controlSetup |= (gain << 4)
+      valueStorage &= mask
+      valueStorage |= (value << shift)
       callback(null, null)
     },
     // write to CONTROL_SETUP
     (callback) => {
-      this.virtualWrite(this.VIRTUAL_REGISTERS.CONTROL_SETUP, controlSetup, (err) => {
+      this.virtualWrite(virtualRegister, valueStorage, (err) => {
         callback(err, null)
       })
     }
   ], callback)
 }
+
 
 ColorSensor.prototype.virtualWrite = function(virtualRegister, value, callback) {
   let status = null
@@ -418,6 +301,7 @@ ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
     callback(err, result)
   })
 }
+
 
 
 module.exports = ColorSensor
