@@ -30,6 +30,9 @@ ColorSensor.prototype.BULB_CURRENT = {
   ONE_HUNDRED: 0b11
 }
 
+// MAX 8mA
+ColorSensor.prototype.INDICATOR_CURRENT = 0b11
+
 ColorSensor.prototype.init = function() {
   this.i2c = new this.port.I2C(this.address) // begin I2C comms
   async.series([
@@ -116,6 +119,79 @@ ColorSensor.prototype.disableBulb = function(callback) {
     // Clear bit 3
     (callback) => {
       ledControl &= 0b11110111
+      callback(null, null)
+    },
+    // write to LED_CONTROL
+    (callback) => {
+      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
+        callback(err, null)
+      })
+    }
+  ], callback)
+}
+
+ColorSensor.prototype.setIndicatorCurrent = function(current, callback){
+  let ledControl
+  async.series([
+    // read LED_CONTROL value
+    (callback) => {
+      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
+        ledControl = data
+        callback(err, null)
+      })
+    },
+    // Set bits 2-3 to user value
+    (callback) => {
+      ledControl &= 0b11111001 // clears bits 5-6
+      ledControl |= (current << 4)// sets bits 5-6 to current
+      callback(null, null)
+    },
+    // write to LED_CONTROL
+    (callback) => {
+      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
+        callback(err, null)
+      })
+    }
+  ], callback)
+}
+
+ColorSensor.prototype.enableIndicator = function(callback) {
+  let ledControl
+  async.series([
+    // read LED_CONTROL value
+    (callback) => {
+      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
+        ledControl = data
+        callback(err, null)
+      })
+    },
+    // Set bit 1
+    (callback) => {
+      ledControl |= 1
+      callback(null, null)
+    },
+    // write to LED_CONTROL
+    (callback) => {
+      this.virtualWrite(this.VIRTUAL_REGISTERS.LED_CONTROL, ledControl, (err) => {
+        callback(err, null)
+      })
+    }
+  ], callback)
+}
+
+ColorSensor.prototype.disableIndicator = function(callback) {
+  let ledControl
+  async.series([
+    // read LED_CONTROL value
+    (callback) => {
+      this.virtualRead(this.VIRTUAL_REGISTERS.LED_CONTROL, (err, data) => {
+        ledControl = data
+        callback(err, null)
+      })
+    },
+    // Clear bit 3
+    (callback) => {
+      ledControl &= 0b11111110
       callback(null, null)
     },
     // write to LED_CONTROL

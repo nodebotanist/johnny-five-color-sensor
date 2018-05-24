@@ -5,8 +5,11 @@ let color = new ColorSensor()
 
 color.on('ready', () => {
   console.log('Ready!')
-  color.enableBulb(() => {})
-  setTimeout(() => { color.disableBulb(() => {}) }, 1000)
+  color.enableBulb(() => { color.enableIndicator(() => {}) })
+  setTimeout(() => { 
+    color.disableBulb(() => { color.disableIndicator(() => {} )})
+  }, 1000)
+
 })
 
 color.init()
