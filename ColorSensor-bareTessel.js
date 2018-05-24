@@ -1,3 +1,7 @@
+/* TODOS:
+Stop race conditons on functions that use virtual read/write
+*/
+
 const util = require('util')
 const events = require('events')
 const tessel = require('tessel')
@@ -9,6 +13,8 @@ function ColorSensor(opts) {
   this.address = opts.address || 0x49
 }
 
+util.inherits(ColorSensor, events.EventEmitter)
+
 ColorSensor.prototype.REGISTERS = {
   PERIPHERAL_STATUS: 0x00,
   PERIPHERAL_READ: 0x02,
@@ -17,6 +23,7 @@ ColorSensor.prototype.REGISTERS = {
 
 ColorSensor.prototype.VIRTUAL_REGISTERS = {
   HW_VERSION: 0x01,
+  INTEGRATION_TIME: 0x05,
   LED_CONTROL: 0x07
 }
 
@@ -43,16 +50,35 @@ ColorSensor.prototype.init = function() {
           console.error('Error: hardware version expected 0x3E or 0x3F, got ', data)
           callback(new Error('Error: hardware version expected 0x3E or 0x3F, got ', data), null)
         }
+        console.log('Hardware version confirmed')
         callback(null, data)
       })
     },
     (callback) => {
+      console.log('Set bulb current')
       this.setBulbCurrent(this.BULB_CURRENT.MINIMUM, callback)
     },
     (callback) => {
+      console.log('Disable bulb')
       this.disableBulb(callback)
+    },
+    (callback) => {
+      console.log('Set indicator current')
+      this.setIndicatorCurrent(this.INDICATOR_CURRENT, callback)
+    },
+    (callback) => {
+      console.log('Disable indicator')
+      this.disableIndicator(callback)
+    },
+    (callback) => {
+      console.log('Set integration time')
+      this.setIntegrationTime(50, callback)
     }
   ], (err, data) => {
+    if(err) { 
+      console.log('Error during init: ', err)
+    }
+    console.log('Internal ready')
     this.emit('ready')
   })
 }
@@ -203,6 +229,11 @@ ColorSensor.prototype.disableIndicator = function(callback) {
   ], callback)
 }
 
+ColorSensor.prototype.setIntegrationTime = function (intTime, callback){
+  intTime &= 0xFF // cap at 255
+  this.virtualWrite(this.VIRTUAL_REGISTERS.INTEGRATION_TIME, intTime, callback)
+}
+
 ColorSensor.prototype.virtualWrite = function(virtualRegister, value, callback) {
   let status = null
   async.series([
@@ -271,7 +302,6 @@ ColorSensor.prototype.virtualWrite = function(virtualRegister, value, callback) 
 
 ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
   let status = null, result = null
-  console.log('Begin virtual read')
   async.series([
     (callback) => {
       this.i2c.transfer(Buffer.from([this.REGISTERS.PERIPHERAL_STATUS]), 1, (err, data) => {
@@ -283,14 +313,12 @@ ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
     (callback) => {
       if(status & this.RX_VALID !== 0x00) {
         // there is already data in the queue, clear it out.
-        console.log('buffer backlog, clearing...')
         this.i2c.transfer(Buffer.from([this.REGISTERS.PERIPHERAL_READ]), 1, (err) => {
           if(err) callback(err, null)
           status = null
           callback(null, null)
         })
       } else {
-        console.log('No backlog. Resuming...')
         callback(null, null)
       }
     },
@@ -298,7 +326,6 @@ ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
       async.until(
         () => {
           if(status == null) {
-            console.log('status NULL')
             return false
           } else {
             return ((status & this.TX_VALID) == 0)
@@ -327,10 +354,8 @@ ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
       async.until(
         () => {
           if(status == null) {
-            console.log('Status null')
             return false
           } else {
-            console.log('Status Read: ', status)
             return (status & this.RX_VALID) != 0
           }
         },
@@ -347,7 +372,7 @@ ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
     (callback) => {
       this.i2c.transfer(Buffer.from([this.REGISTERS.PERIPHERAL_READ]), 1, (err, data) => {
         if (err) callback(err, null)
-        console.log('Peripheral data byte read: ', data[0])
+        console.log('Data byte read from address ', virtualRegister, ': ', data[0])
         result = data[0]
         callback(null, data[0])
       })
@@ -357,6 +382,5 @@ ColorSensor.prototype.virtualRead = function(virtualRegister, callback) {
   })
 }
 
-util.inherits(ColorSensor, events.EventEmitter)
 
 module.exports = ColorSensor
