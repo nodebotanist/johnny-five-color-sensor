@@ -48,6 +48,13 @@ ColorSensor.prototype.GAIN = {
   SIXTY_FOUR_X: 0b11
 }
 
+ColorSensor.prototype.MEASUREMENT_MODES = {
+  MODE_ZERO: 0b00, //Mode 0: Continuous reading of VBGY (7262) / STUV (7263)
+  MODE_ONE: 0b01, //Mode 1: Continuous reading of GYOR (7262) / RTUX (7263)
+  MODE_TWO: 0b10, //Mode 2: Continuous reading of all channels (power-on default)
+  MODE_THREE: 0b11 //Mode 3: One-shot reading of all channels
+}
+
 ColorSensor.prototype.init = function() {
   this.i2c = new this.port.I2C(this.address) // begin I2C comms
   async.series([
@@ -85,6 +92,10 @@ ColorSensor.prototype.init = function() {
     (callback) => {
       console.log('Set Gain')
       this.setGain(this.GAIN.SIXTY_FOUR_X, callback)
+    },
+    (callback) => {
+      console.log('Set measurement mode')
+      this.setMeasurementMode(this.MEASUREMENT_MODES.MODE_THREE, callback)
     }
   ], (err, data) => {
     if(err) { 
@@ -126,6 +137,10 @@ ColorSensor.prototype.setIntegrationTime = function (intTime, callback){
 
 ColorSensor.prototype.setGain = function(gain, callback) {
   this._setBitMask(this.VIRTUAL_REGISTERS.CONTROL_SETUP, 0b11001111, gain, 4, callback)
+}
+
+ColorSensor.prototype.setMeasurementMode = function (mode, callback) {
+  this._setBitMask(this.VIRTUAL_REGISTERS.CONTROL_SETUP, 0b11110011, mode, 2, callback)
 }
 
 ColorSensor.prototype._setBitMask = function (virtualRegister, mask, value, shift, callback){
