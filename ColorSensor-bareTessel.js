@@ -162,7 +162,12 @@ ColorSensor.prototype.takeMeasurement = function (bulbOn, callback) {
     },
     this.clearData.bind(this),
     this.waitForMeasurementData.bind(this),
-    this.getMeasurementData.bind(this),  
+    (callabck) => {
+      this.getMeasurementData((err, data) => {
+        result = data
+        callback(err)
+      })
+    },
     (callback) => {
       if(bulbOn) {
         this.disableBulb(callback)
@@ -170,8 +175,8 @@ ColorSensor.prototype.takeMeasurement = function (bulbOn, callback) {
         callback(null)
       }
     }
-  ], () => {
-    this.emit('data', [result])
+  ], (err) => {
+    callback(err, result)
   })
 }
 
@@ -207,8 +212,36 @@ ColorSensor.prototype.getMeasurementData = function (callback) {
         result.violet = data
         callback(err)
       })
+    },
+    (callback) => {
+      this.getChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_B, (err, data) => {
+        result.blue = data
+        callback(err)
+      })
+    },(callback) => {
+      this.getChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_G, (err, data) => {
+        result.green = data
+        callback(err)
+      })
+    },(callback) => {
+      this.getChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_Y, (err, data) => {
+        result.yellow = data
+        callback(err)
+      })
+    },(callback) => {
+      this.getChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_O, (err, data) => {
+        result.orange = data
+        callback(err)
+      })
+    },(callback) => {
+      this.getChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_R, (err, data) => {
+        result.red = data
+        callback(err)
+      })
     }
   ], (err) => {
+    console.log('Measurement results: ', result)
+    this.emit('data', [result])    
     callback(err, result)
   })
 }
@@ -229,7 +262,6 @@ ColorSensor.prototype.getChannelMeasurement = function(channel, callback) {
       })
     }
   ], (err) => {
-    this.emit('data', [result])
     callback(err, result)
   })
 }
