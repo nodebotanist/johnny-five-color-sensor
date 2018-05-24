@@ -23,6 +23,7 @@ ColorSensor.prototype.REGISTERS = {
 
 ColorSensor.prototype.VIRTUAL_REGISTERS = {
   HW_VERSION: 0x01,
+  CONTROL_SETUP: 0x04,
   INTEGRATION_TIME: 0x05,
   LED_CONTROL: 0x07
 }
@@ -39,6 +40,13 @@ ColorSensor.prototype.BULB_CURRENT = {
 
 // MAX 8mA
 ColorSensor.prototype.INDICATOR_CURRENT = 0b11
+
+ColorSensor.prototype.GAIN = {
+  ONE_X: 0b00,
+  THREE_POINT_SEVEN_X: 0b01,
+  SIXTEEN_X: 0b10,
+  SIXTY_FOUR_X: 0b11
+}
 
 ColorSensor.prototype.init = function() {
   this.i2c = new this.port.I2C(this.address) // begin I2C comms
@@ -73,6 +81,10 @@ ColorSensor.prototype.init = function() {
     (callback) => {
       console.log('Set integration time')
       this.setIntegrationTime(50, callback)
+    },
+    (callback) => {
+      console.log('Set Gain')
+      this.setGain(this.GAIN.SIXTY_FOUR_X, callback)
     }
   ], (err, data) => {
     if(err) { 
@@ -232,6 +244,31 @@ ColorSensor.prototype.disableIndicator = function(callback) {
 ColorSensor.prototype.setIntegrationTime = function (intTime, callback){
   intTime &= 0xFF // cap at 255
   this.virtualWrite(this.VIRTUAL_REGISTERS.INTEGRATION_TIME, intTime, callback)
+}
+
+ColorSensor.prototype.setGain = function(gain, callback) {
+  let controlSetup
+  async.series([
+    // read CONTROL_SETUP value
+    (callback) => {
+      this.virtualRead(this.VIRTUAL_REGISTERS.CONTROL_SETUP, (err, data) => {
+        controlSetup = data
+        callback(err, null)
+      })
+    },
+    // Set bits 5-6
+    (callback) => {
+      controlSetup &= 0b11001111
+      controlSetup |= (gain << 4)
+      callback(null, null)
+    },
+    // write to CONTROL_SETUP
+    (callback) => {
+      this.virtualWrite(this.VIRTUAL_REGISTERS.CONTROL_SETUP, controlSetup, (err) => {
+        callback(err, null)
+      })
+    }
+  ], callback)
 }
 
 ColorSensor.prototype.virtualWrite = function(virtualRegister, value, callback) {
