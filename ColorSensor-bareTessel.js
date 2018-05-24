@@ -25,11 +25,18 @@ ColorSensor.prototype.VIRTUAL_REGISTERS = {
   HW_VERSION: 0x01,
   CONTROL_SETUP: 0x04,
   INTEGRATION_TIME: 0x05,
-  LED_CONTROL: 0x07
+  LED_CONTROL: 0x07,
+  AS7262_V: 0x08,
+  AS7262_B: 0x0A,
+  AS7262_G: 0x0C,
+  AS7262_Y: 0x0E,
+  AS7262_O: 0x10,
+  AS7262_R: 0x12
 }
 
 ColorSensor.prototype.RX_VALID = 0x01
 ColorSensor.prototype.TX_VALID = 0x02
+ColorSensor.prototype.DATA_AVAILABLE = 0x02
 
 ColorSensor.prototype.BULB_CURRENT = {
   TWELVE_POINT_FIVE: 0b00,
@@ -141,6 +148,90 @@ ColorSensor.prototype.setGain = function(gain, callback) {
 
 ColorSensor.prototype.setMeasurementMode = function (mode, callback) {
   this._setBitMask(this.VIRTUAL_REGISTERS.CONTROL_SETUP, 0b11110011, mode, 2, callback)
+}
+
+ColorSensor.prototype.takeMeasurement = function (bulbOn, callback) {
+  let result
+  async.series([
+    (callback) => {
+      if(bulbOn) {
+        this.enableBulb(callback)
+      } else {
+        callback(null)
+      }
+    },
+    this.clearData.bind(this),
+    this.waitForMeasurementData.bind(this),
+    this.getMeasurementData.bind(this),  
+    (callback) => {
+      if(bulbOn) {
+        this.disableBulb(callback)
+      } else {
+        callback(null)
+      }
+    }
+  ], () => {
+    this.emit('data', [result])
+  })
+}
+
+ColorSensor.prototype.clearData = function(callback) {
+  this._setBitMask(this.VIRTUAL_REGISTERS.CONTROL_SETUP, 0b11111101, 0, 1, callback)
+}
+
+ColorSensor.prototype.waitForMeasurementData = function (callback) {
+  let status = null
+  async.until(
+    () => {
+      if(status == null) {
+        return false
+      } else {
+        return ((status & this.DATA_AVAILABLE) == 0x02)
+      }
+    },
+    (callback) => {
+      this.virtualRead(this.VIRTUAL_REGISTERS.CONTROL_SETUP, (err, result) => {
+        status = result
+        callback(err)
+      })
+    },
+    callback
+  )
+}
+
+ColorSensor.prototype.getMeasurementData = function (callback) {
+  let result = {}
+  async.series([
+    (callback) => {
+      this.getChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_V, (err, data) => {
+        result.violet = data
+        callback(err)
+      })
+    }
+  ], (err) => {
+    callback(err, result)
+  })
+}
+
+ColorSensor.prototype.getChannelMeasurement = function(channel, callback) {
+  let result
+  async.series([
+    (callback) => {
+      this.virtualRead(channel, (err, data) => {
+        result = data << 8 // high byte
+        callback(err)
+      })
+    },
+    (callback) => {
+      this.virtualRead(channel + 1, (err, data) => {
+        result |= data // low byte
+        callback(err)
+      })
+    }
+  ], (err) => {
+    this.emit('data', [result])
+    callback(err, result)
+  })
 }
 
 ColorSensor.prototype._setBitMask = function (virtualRegister, mask, value, shift, callback){

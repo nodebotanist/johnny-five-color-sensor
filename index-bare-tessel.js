@@ -7,9 +7,9 @@ color.init()
 
 color.on('ready', () => {
   console.log('Ready!')
-  color.enableBulb(() => { color.enableIndicator(() => {}) })
-  setTimeout(() => { 
-    color.disableBulb(() => { color.disableIndicator(() => {} )})
-  }, 1000)
+  color.on('data', (event) => {
+    console.log(event)
+  })
+  color.takeMeasurement(true, () => {})
 })
 
