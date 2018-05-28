@@ -349,7 +349,7 @@ ColorSensor.prototype.getCalibratedChannelMeasurement = function(channel, callba
       })
     }
   ], (err) => {
-    callback(err, Buffer.from(result))
+    callback(err, Buffer.from(result).readFloatBE(0))
   })
 }
 
