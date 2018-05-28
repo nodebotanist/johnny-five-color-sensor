@@ -31,7 +31,13 @@ ColorSensor.prototype.VIRTUAL_REGISTERS = {
   AS7262_G: 0x0C,
   AS7262_Y: 0x0E,
   AS7262_O: 0x10,
-  AS7262_R: 0x12
+  AS7262_R: 0x12,
+  AS7262_V_CAL: 0x14,
+  AS7262_B_CAL: 0x18,
+  AS7262_G_CAL: 0x1C,
+  AS7262_Y_CAL: 0x20,
+  AS7262_O_CAL: 0x24,
+  AS7262_R_CAL: 0x28
 }
 
 ColorSensor.prototype.RX_VALID = 0x01
@@ -150,7 +156,7 @@ ColorSensor.prototype.setMeasurementMode = function (mode, callback) {
   this._setBitMask(this.VIRTUAL_REGISTERS.CONTROL_SETUP, 0b11110011, mode, 2, callback)
 }
 
-ColorSensor.prototype.takeMeasurement = function (bulbOn, callback) {
+ColorSensor.prototype.takeMeasurement = function (bulbOn, calibrated, callback) {
   let result
   async.series([
     (callback) => {
@@ -162,11 +168,18 @@ ColorSensor.prototype.takeMeasurement = function (bulbOn, callback) {
     },
     this.clearData.bind(this),
     this.waitForMeasurementData.bind(this),
-    (callabck) => {
-      this.getMeasurementData((err, data) => {
-        result = data
-        callback(err)
-      })
+    (callback) => {
+      if(calibrated) {
+        this.getCalibratedMeasurementData((err, data) => {
+          result = data
+          callback(err)
+        })
+      } else {
+        this.getMeasurementData((err, data) => {
+          result = data
+          callback(err)
+        })
+      }
     },
     (callback) => {
       if(bulbOn) {
@@ -263,6 +276,80 @@ ColorSensor.prototype.getChannelMeasurement = function(channel, callback) {
     }
   ], (err) => {
     callback(err, result)
+  })
+}
+
+ColorSensor.prototype.getCalibratedMeasurementData = function(callback) {
+  let result = {}
+  async.series([
+    (callback) => {
+      this.getCalibratedChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_V_CAL, (err, data) => {
+        result.violet = data
+        callback(err)
+      })
+    },
+    (callback) => {
+      this.getCalibratedChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_B_CAL, (err, data) => {
+        result.blue = data
+        callback(err)
+      })
+    },(callback) => {
+      this.getCalibratedChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_G_CAL, (err, data) => {
+        result.green = data
+        callback(err)
+      })
+    },(callback) => {
+      this.getCalibratedChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_Y_CAL, (err, data) => {
+        result.yellow = data
+        callback(err)
+      })
+    },(callback) => {
+      this.getCalibratedChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_O_CAL, (err, data) => {
+        result.orange = data
+        callback(err)
+      })
+    },(callback) => {
+      this.getCalibratedChannelMeasurement(this.VIRTUAL_REGISTERS.AS7262_R_CAL, (err, data) => {
+        result.red = data
+        callback(err)
+      })
+    }
+  ], (err) => {
+    console.log('Measurement results: ', result)
+    this.emit('data', [result])    
+    callback(err, result)
+  })
+}
+
+ColorSensor.prototype.getCalibratedChannelMeasurement = function(channel, callback) {
+  let result = []
+  async.series([
+    (callback) => {
+      this.virtualRead(channel, (err, data) => {
+        result.push(data)
+        callback(err)
+      })
+    },
+    (callback) => {
+      this.virtualRead(channel + 1, (err, data) => {
+        result.push(data)
+        callback(err)
+      })
+    },
+    (callback) => {
+      this.virtualRead(channel + 2, (err, data) => {
+        result.push(data)
+        callback(err)
+      })
+    },
+    (callback) => {
+      this.virtualRead(channel + 3, (err, data) => {
+        result.push(data)
+        callback(err)
+      })
+    }
+  ], (err) => {
+    callback(err, Buffer.from(result))
   })
 }
 

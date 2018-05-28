@@ -10,6 +10,6 @@ color.on('ready', () => {
   color.on('data', (event) => {
     console.log('Data recieved: ', event)
   })
-  color.takeMeasurement(true, () => {})
+  color.takeMeasurement(true, true, () => {})
 })
 
