@@ -68,7 +68,8 @@ ColorSensor.prototype.MEASUREMENT_MODES = {
   MODE_THREE: 0b11 //Mode 3: One-shot reading of all channels
 }
 
-ColorSensor.prototype.init = function() {
+ColorSensor.prototype.init = function(opts) {
+  let mode = opts.mode || this.MEASUREMENT_MODES.MODE_THREE
   this.i2c = new this.port.I2C(this.address) // begin I2C comms
   async.series([
     (callback) => { 
@@ -108,7 +109,7 @@ ColorSensor.prototype.init = function() {
     },
     (callback) => {
       console.log('Set measurement mode')
-      this.setMeasurementMode(this.MEASUREMENT_MODES.MODE_THREE, callback)
+      this.setMeasurementMode(mode, callback)
     }
   ], (err, data) => {
     if(err) { 
@@ -154,6 +155,18 @@ ColorSensor.prototype.setGain = function(gain, callback) {
 
 ColorSensor.prototype.setMeasurementMode = function (mode, callback) {
   this._setBitMask(this.VIRTUAL_REGISTERS.CONTROL_SETUP, 0b11110011, mode, 2, callback)
+}
+
+ColorSensor.prototype.takeContinuousMeasurements = function(interval) {
+  async.series([
+    this.waitForMeasurementData.bind(this),
+    (callback) => {
+      this.takeMeasurement(true, true, callback)
+    },
+    (callback) => {
+      setTimeout(this.takeContinuousMeasurements.bind(this, [interval]), interval)
+    }
+  ])
 }
 
 ColorSensor.prototype.takeMeasurement = function (bulbOn, calibrated, callback) {
